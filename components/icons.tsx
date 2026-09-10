@@ -55,6 +55,13 @@ export function IconCopy({ size = 16, className }: IconProps) {
     </svg>
   );
 }
+export function IconDownload({ size = 16, className }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={className} {...base}>
+      <path d="M12 3v12M7 10l5 5 5-5M5 21h14" />
+    </svg>
+  );
+}
 export function IconCheck({ size = 16, className }: IconProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" className={className} {...base}>

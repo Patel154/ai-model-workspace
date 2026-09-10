@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
-import { IconCopy, IconCheck, IconFile } from "./icons";
+import { IconCopy, IconCheck, IconDownload, IconFile } from "./icons";
 import DiffBlock from "./DiffBlock";
 import clsx from "clsx";
 
@@ -27,6 +27,20 @@ export default function CodeBlock({
     await navigator.clipboard.writeText(content);
     setCopied(true);
     setTimeout(() => setCopied(false), 1600);
+  };
+
+  const download = () => {
+    const safeName = (filename || `generated-code.${extensionFor(language)}`)
+      .replace(/[\\/:*?"<>|]/g, "-")
+      .trim() || "generated-code.txt";
+    const url = URL.createObjectURL(new Blob([content], { type: "text/plain;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = safeName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -56,6 +70,14 @@ export default function CodeBlock({
               {showDiff ? "Hide diff" : "Compare to original"}
             </button>
           )}
+          <button
+            onClick={download}
+            className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-ink-faint transition-colors hover:bg-base-hover hover:text-ink"
+            title={`Download ${filename || "code"}`}
+          >
+            <IconDownload size={12} />
+            Download
+          </button>
           <button
             onClick={copy}
             className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-ink-faint transition-colors hover:bg-base-hover hover:text-ink"
@@ -88,4 +110,24 @@ export default function CodeBlock({
       )}
     </div>
   );
+}
+
+function extensionFor(language: string): string {
+  const extensions: Record<string, string> = {
+    javascript: "js",
+    typescript: "ts",
+    python: "py",
+    markdown: "md",
+    html: "html",
+    css: "css",
+    json: "json",
+    yaml: "yml",
+    bash: "sh",
+    java: "java",
+    csharp: "cs",
+    rust: "rs",
+    go: "go",
+    sql: "sql"
+  };
+  return extensions[language.toLowerCase()] || "txt";
 }
