@@ -1,4 +1,5 @@
 // Client-side helpers for classifying and reading uploaded files.
+import JSZip from "jszip";
 
 const TEXT_EXTENSIONS: Record<string, string> = {
   py: "python",
@@ -38,6 +39,7 @@ const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp", "svg"]);
 // whichever model is selected. ~120k chars is roughly 30-40k tokens.
 export const MAX_TEXT_CHARS = 120_000;
 export const MAX_FILE_BYTES = 15 * 1024 * 1024; // 15MB
+export const MAX_ARCHIVE_ENTRIES = 100;
 
 export function extOf(filename: string): string {
   const parts = filename.split(".");
@@ -53,7 +55,26 @@ export function classifyFile(file: File): "text" | "image" | "binary" {
     return "text";
   }
   if (ext === "pdf") return "binary"; // handled server-side
+  if (ext === "zip" || file.type === "application/zip") return "binary";
   return "binary";
+}
+
+export async function extractZipFiles(file: File): Promise<File[]> {
+  const archive = await JSZip.loadAsync(file);
+  const entries = Object.values(archive.files).filter((entry) => !entry.dir);
+  if (entries.length > MAX_ARCHIVE_ENTRIES) {
+    throw new Error(`ZIP contains too many files (max ${MAX_ARCHIVE_ENTRIES}).`);
+  }
+
+  const extracted: File[] = [];
+  for (const entry of entries) {
+    const name = entry.name.replace(/^\/+/, "");
+    if (!name || name.includes("..")) continue;
+    const blob = await entry.async("blob");
+    if (blob.size > MAX_FILE_BYTES) continue;
+    extracted.push(new File([blob], name, { type: blob.type || mimeFor(name) }));
+  }
+  return extracted;
 }
 
 export function languageFor(filename: string): string {
@@ -92,4 +113,11 @@ export function humanSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function mimeFor(filename: string): string {
+  const ext = extOf(filename);
+  if (IMAGE_EXTENSIONS.has(ext)) return `image/${ext === "jpg" ? "jpeg" : ext}`;
+  if (ext in TEXT_EXTENSIONS) return "text/plain";
+  return "application/octet-stream";
 }

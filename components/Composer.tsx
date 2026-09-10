@@ -7,6 +7,7 @@ import {
   classifyFile,
   readAsText,
   readAsDataUrl,
+  extractZipFiles,
   MAX_FILE_BYTES,
   humanSize
 } from "@/lib/file-utils";
@@ -41,7 +42,14 @@ export default function Composer({
       }
       const kind = classifyFile(file);
       try {
-        if (kind === "text") {
+        if (file.name.toLowerCase().endsWith(".zip") || file.type === "application/zip") {
+          const extractedFiles = await extractZipFiles(file);
+          if (extractedFiles.length === 0) {
+            setFileError(`${file.name} contains no supported files.`);
+          } else {
+            await processFiles(extractedFiles);
+          }
+        } else if (kind === "text") {
           const { content, truncated } = await readAsText(file);
           addAttachment({
             id: uuid(),
