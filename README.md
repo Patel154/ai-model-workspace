@@ -33,7 +33,7 @@ npm run start
 ## Using it
 
 1. The model selector (top-left) loads your available models automatically. Click it, search, and pick one.
-2. Type a message or drag a file into the composer — code, text, JSON, Markdown, images, or PDFs.
+2. Type a message or drag a file into the composer — code, text, JSON, Markdown, images, PDFs, or PowerPoint files.
 3. Send. The response streams in with Markdown rendering and syntax-highlighted code.
 4. Switch models any time from the same selector — the conversation continues with the new model.
 5. If a model rewrites a file you uploaded, ask it to keep referencing the file by name; when it does, a **Compare to original** toggle appears on that code block so you can see exactly what changed.
@@ -46,6 +46,7 @@ npm run start
 | Code, text, JSON, Markdown, YAML, etc. | Read directly in the browser and inlined into your message as a labeled code block, so the model sees the full file content. |
 | Images (png/jpg/gif/webp/svg) | Sent as base64 image data. Works with any model the API reports (or that turns out) to support vision — if a model can't handle images, the API's error is surfaced clearly in the chat rather than failing silently. |
 | PDFs | Text is extracted server-side and sent the same way as a text file. Scanned/image-only PDFs may not extract cleanly — you'll get a clear error if that happens. |
+| PowerPoint (`.pptx`, `.pptm`) | Slide text is extracted in the browser and sent with slide boundaries. Older binary `.ppt` files must be saved as `.pptx` first. |
 | Anything else | Rejected with an inline message rather than silently failing. |
 
 A ~15MB per-file size cap and a ~120K character cap on extracted text keep any single upload from blowing out a model's context window; you'll see a "truncated" note on the file chip if a file was cut down.

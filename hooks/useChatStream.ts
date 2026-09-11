@@ -28,6 +28,7 @@ export function useChatStream({
     content: string;
   } | null>(null);
   const updateFrameRef = useRef<number | null>(null);
+  const updateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const flushStreamingUpdate = useCallback(() => {
     updateFrameRef.current = null;
@@ -43,8 +44,12 @@ export function useChatStream({
   const queueStreamingUpdate = useCallback(
     (convId: string, messageId: string, content: string) => {
       pendingUpdateRef.current = { convId, messageId, content };
-      if (updateFrameRef.current === null) {
-        updateFrameRef.current = requestAnimationFrame(flushStreamingUpdate);
+      if (updateFrameRef.current === null && updateTimerRef.current === null) {
+        // Keep Markdown parsing below the rate at which tokens arrive.
+        updateTimerRef.current = setTimeout(() => {
+          updateTimerRef.current = null;
+          updateFrameRef.current = requestAnimationFrame(flushStreamingUpdate);
+        }, 50);
       }
     },
     [flushStreamingUpdate]
@@ -54,6 +59,9 @@ export function useChatStream({
     return () => {
       if (updateFrameRef.current !== null) {
         cancelAnimationFrame(updateFrameRef.current);
+      }
+      if (updateTimerRef.current !== null) {
+        clearTimeout(updateTimerRef.current);
       }
     };
   }, []);
@@ -152,6 +160,10 @@ export function useChatStream({
           if (updateFrameRef.current !== null) {
             cancelAnimationFrame(updateFrameRef.current);
             updateFrameRef.current = null;
+          }
+          if (updateTimerRef.current !== null) {
+            clearTimeout(updateTimerRef.current);
+            updateTimerRef.current = null;
           }
           flushStreamingUpdate();
           updateMessage(convId, assistantId, { pending: false });

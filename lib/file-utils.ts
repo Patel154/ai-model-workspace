@@ -40,6 +40,7 @@ const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp", "svg"]);
 export const MAX_TEXT_CHARS = 120_000;
 export const MAX_FILE_BYTES = 15 * 1024 * 1024; // 15MB
 export const MAX_ARCHIVE_ENTRIES = 100;
+const POWERPOINT_EXTENSIONS = new Set(["pptx", "pptm"]);
 
 export function extOf(filename: string): string {
   const parts = filename.split(".");
@@ -55,8 +56,51 @@ export function classifyFile(file: File): "text" | "image" | "binary" {
     return "text";
   }
   if (ext === "pdf") return "binary"; // handled server-side
+  if (POWERPOINT_EXTENSIONS.has(ext)) return "binary"; // extracted from OOXML below
   if (ext === "zip" || file.type === "application/zip") return "binary";
   return "binary";
+}
+
+export async function extractPowerPointText(
+  file: File
+): Promise<{ content: string; truncated: boolean; slides: number }> {
+  const archive = await JSZip.loadAsync(file);
+  const slideEntries = Object.values(archive.files)
+    .filter((entry) => /^ppt\/slides\/slide\d+\.xml$/i.test(entry.name) && !entry.dir)
+    .sort((a, b) => {
+      const number = (name: string) => Number(name.match(/slide(\d+)\.xml$/i)?.[1] || 0);
+      return number(a.name) - number(b.name);
+    });
+
+  if (slideEntries.length === 0) {
+    throw new Error("This PowerPoint file does not contain readable slides.");
+  }
+  if (slideEntries.length > MAX_ARCHIVE_ENTRIES) {
+    throw new Error(`PowerPoint contains too many slides (max ${MAX_ARCHIVE_ENTRIES}).`);
+  }
+
+  const slideTexts: string[] = [];
+  for (let index = 0; index < slideEntries.length; index += 1) {
+    const xml = await slideEntries[index].async("string");
+    const document = new DOMParser().parseFromString(xml, "application/xml");
+    if (document.querySelector("parsererror")) {
+      throw new Error("PowerPoint contains an unreadable slide.");
+    }
+    const text = Array.from(document.getElementsByTagName("a:t"))
+      .map((node) => node.textContent || "")
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (text) slideTexts.push(`Slide ${index + 1}\n${text}`);
+  }
+
+  const full = slideTexts.join("\n\n");
+  const truncated = full.length > MAX_TEXT_CHARS;
+  return {
+    content: truncated ? full.slice(0, MAX_TEXT_CHARS) : full,
+    truncated,
+    slides: slideEntries.length
+  };
 }
 
 export async function extractZipFiles(file: File): Promise<File[]> {

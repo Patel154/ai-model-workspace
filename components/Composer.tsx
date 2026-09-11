@@ -8,6 +8,7 @@ import {
   readAsText,
   readAsDataUrl,
   extractZipFiles,
+  extractPowerPointText,
   MAX_FILE_BYTES,
   humanSize
 } from "@/lib/file-utils";
@@ -79,6 +80,12 @@ export default function Composer({
             setFileError(data?.error?.message || `Couldn't read ${file.name}.`);
             continue;
           }
+          if (typeof data.text !== "string" || !data.text.trim()) {
+            setFileError(
+              `${file.name} has no extractable text. Scanned or image-only PDFs are not supported yet.`
+            );
+            continue;
+          }
           addAttachment({
             id: uuid(),
             name: file.name,
@@ -88,6 +95,23 @@ export default function Composer({
             textContent: data.text,
             truncated: data.truncated
           });
+        } else if (/\.(pptx|pptm)$/i.test(file.name)) {
+          const { content, truncated, slides } = await extractPowerPointText(file);
+          if (!content.trim()) {
+            setFileError(`${file.name} has no extractable text in its ${slides} slides.`);
+            continue;
+          }
+          addAttachment({
+            id: uuid(),
+            name: file.name,
+            mime: file.type || "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            kind: "text",
+            size: file.size,
+            textContent: content,
+            truncated
+          });
+        } else if (file.name.toLowerCase().endsWith(".ppt")) {
+          setFileError(`${file.name} is an older .ppt file. Please save it as .pptx and try again.`);
         } else {
           setFileError(`${file.name} is an unsupported file type.`);
         }
@@ -206,6 +230,7 @@ export default function Composer({
               ref={fileInputRef}
               type="file"
               multiple
+              accept=".html,.htm,.css,.scss,.js,.jsx,.ts,.tsx,.vue,.json,.md,.mdx,.txt,.csv,.yml,.yaml,.sh,.env,.go,.rs,.java,.rb,.php,.c,.h,.cpp,.cs,.sql,.toml,.pdf,.pptx,.pptm,.png,.jpg,.jpeg,.gif,.webp,.svg"
               className="hidden"
               onChange={(e) => {
                 if (e.target.files?.length) processFiles(e.target.files);

@@ -15,9 +15,27 @@ export default function ChatMessages({
   onRegenerate: () => void;
 }) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const wasNearBottomRef = useRef(true);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ block: "end" });
+    const container = containerRef.current?.parentElement;
+    if (!container) return;
+
+    const updateScrollState = () => {
+      wasNearBottomRef.current =
+        container.scrollHeight - container.scrollTop - container.clientHeight < 96;
+    };
+
+    updateScrollState();
+    container.addEventListener("scroll", updateScrollState, { passive: true });
+    return () => container.removeEventListener("scroll", updateScrollState);
+  }, []);
+
+  useEffect(() => {
+    if (wasNearBottomRef.current) {
+      bottomRef.current?.scrollIntoView({ block: "end", behavior: "auto" });
+    }
   }, [messages.length, messages[messages.length - 1]?.content]);
 
   const attachmentKey = messages
@@ -34,7 +52,7 @@ export default function ChatMessages({
       }
     }
     return map;
-  }, [attachmentKey, messages]);
+  }, [attachmentKey]);
 
   const modelNameById = useMemo(() => {
     const map = new Map<string, string>();
@@ -49,7 +67,7 @@ export default function ChatMessages({
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-[900px] flex-1 flex-col py-4">
+    <div ref={containerRef} className="mx-auto flex w-full max-w-[900px] flex-1 flex-col py-4">
       {messages.map((m) => (
         <MessageBubble
           key={m.id}

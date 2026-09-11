@@ -55,9 +55,18 @@ function extToLang(filename: string): string {
     ts: "typescript",
     tsx: "tsx",
     html: "html",
+    htm: "html",
     css: "css",
+    scss: "scss",
     json: "json",
-    md: "markdown"
+    md: "markdown",
+    mdx: "markdown",
+    vue: "html",
+    sh: "bash",
+    yml: "yaml",
+    yaml: "yaml",
+    sql: "sql",
+    cs: "csharp"
   };
   return map[ext] || ext || "text";
 }
